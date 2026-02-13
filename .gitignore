@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.DS_Store
+
+# Tokens and channel cache
+*.log
+*.tmp
