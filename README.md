@@ -39,11 +39,13 @@ Alternatively, export the variables directly in your shell.
 
 ### 1. Log in
 ```bash
+gcalendar-webhook-cli login
 ```
 The command launches a browser for consent. After approval, the CLI stores refresh/access tokens in `~/.config/gcalendar-webhook-cli/tokens.json`.
 
 ### 2. Create a watch channel
 ```bash
+gcalendar-webhook-cli watch \
   --calendar-id user@example.com \
   --address https://yourdomain.com/notifications \
   --ttl-hours 168 \
@@ -61,14 +63,17 @@ The command prints the channel identifiers and caches them locally for later use
 
 ### 3. Inspect channels
 ```bash
+gcalendar-webhook-cli channels list
 ```
 
 ### 4. Stop a channel
 ```bash
+gcalendar-webhook-cli channels stop 01234567-89ab-cdef-0123456789ab
 ```
 
 ### 5. Prune expired channels
 ```bash
+gcalendar-webhook-cli channels prune
 ```
 Add `--dry-run` to preview without stopping.
 
