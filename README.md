@@ -1,101 +1,197 @@
 # gcalendar-webhook-cli
 
-CLI utility for creating and managing Google Calendar webhook (push notification) channels. It wraps the Calendar API watch/stop endpoints, handles OAuth 2.0 installed-app authentication, and stores channel metadata locally for easy management.
+CLI utility for managing Google Calendar webhook (push notification) channels. Configure multiple accounts and calendars via YAML, authenticate via OAuth 2.0, and manage webhook channels with local state tracking.
 
 ## Features
-- OAuth 2.0 login flow with token persistence under `~/.config/gcalendar-webhook-cli/`
-- `watch` command to create webhook channels for calendar events, ACLs, calendar list, or settings
-- Local channel registry with `channels list`, `channels stop`, and `channels prune`
-- HTTPS endpoint validation and optional TTL/token support
+- YAML-based configuration for multiple accounts and calendars
+- OAuth 2.0 authentication with token persistence
+- Create webhook channels for calendar events
+- Stop webhook channels
+- List all active webhooks (local state only)
+- Automatic refresh of expiring/expired webhooks
+- Storage under `~/.gcalendar-webhook-cli/`
+
+## Storage Locations
+
+All data is stored under `~/.gcalendar-webhook-cli/`:
+
+```
+~/.gcalendar-webhook-cli/
+├── tokens/
+│   ├── work-account.json     # OAuth tokens for work-account
+│   └── personal.json          # OAuth tokens for personal account
+└── state/
+    ├── work-account.json      # Webhook state for work-account
+    └── personal.json          # Webhook state for personal account
+```
 
 ## Prerequisites
 1. **Google Cloud project** with the Google Calendar API enabled.
-2. **OAuth 2.0 client credentials** (Desktop application) for your project. Record the client ID and secret.
-3. Register the redirect URI `http://127.0.0.1:53682/oauth2callback` (or your custom port) for the OAuth client.
-4. Node.js 18+ (for native fetch and modern syntax).
+2. **OAuth 2.0 client credentials** (Desktop application). Download `credentials.json` from your Google Cloud Console.
+3. Node.js 18+ (for native fetch and modern syntax).
 
 ## Installation
 ```bash
 npm install
 npm run build
-npm link  # optional, to expose `gcalendar-webhook-cli`
+npm link  # optional, to expose `gcalendar-webhook-cli` globally
 ```
 
-Copy `.env.example` to `.env` and populate your credentials:
+## Configuration
 
-```bash
-cp .env.example .env
+Create a `gcalendar-webhooks.yaml` file in your project directory. See `examples/gcalendar-webhooks.example.yaml` for a template.
+
+### YAML Schema
+
+```yaml
+# Global credentials path (optional, can be overridden per account)
+credentials_path: ./credentials.json
+
+accounts:
+  - label: work-account                        # Unique account identifier
+    credentials_path: ./credentials-work.json  # Optional: override global credentials
+    calendars:
+      - calendar_id: primary                   # Calendar ID (use 'primary' for main calendar)
+        webhook_url: https://example.com/webhooks/work/primary  # HTTPS endpoint
+      - calendar_id: team@example.com
+        webhook_url: https://example.com/webhooks/work/team
+
+  - label: personal
+    calendars:
+      - calendar_id: primary
+        webhook_url: https://example.com/webhooks/personal/primary
 ```
 
-```
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-# GOOGLE_REDIRECT_PORT=53682
-```
+### Configuration Fields
 
-Alternatively, export the variables directly in your shell.
+- `credentials_path`: Path to OAuth 2.0 credentials JSON file (can be global or per-account)
+- `accounts[]`: Array of Google accounts
+  - `label`: Unique identifier for the account (used in commands)
+  - `credentials_path`: Optional per-account credentials override
+  - `calendars[]`: Array of calendars to manage
+    - `calendar_id`: Calendar identifier (`primary` or email address)
+    - `webhook_url`: HTTPS endpoint that will receive webhook notifications
 
 ## Usage
 
-### 1. Log in
-```bash
-gcalendar-webhook-cli login
-```
-The command launches a browser for consent. After approval, the CLI stores refresh/access tokens in `~/.config/gcalendar-webhook-cli/tokens.json`.
+### 1. Authenticate
 
-### 2. Create a watch channel
+Authenticate each account configured in your YAML:
+
+```bash
+gcalendar-webhook-cli auth --account work-account
+gcalendar-webhook-cli auth --account personal
+```
+
+The command launches a browser for OAuth consent. After approval, tokens are stored in `~/.gcalendar-webhook-cli/tokens/<account-label>.json`.
+
+### 2. Create Webhook Channels
+
+Create a webhook channel for a specific calendar:
+
 ```bash
 gcalendar-webhook-cli watch \
-  --calendar-id user@example.com \
-  --address https://yourdomain.com/notifications \
-  --ttl-hours 168 \
-  --token forwardTo=crm
+  --account work-account \
+  --calendar primary
 ```
 
-Options:
-- `--calendar-id` (default: `primary`) – required for `events`/`acl` resources.
-- `--address` – HTTPS endpoint that will receive notifications.
-- `--resource` – `events`, `acl`, `calendarList`, or `settings` (default `events`).
-- `--ttl-hours` – request an expiration in hours (otherwise Google applies defaults).
-- `--token` – optional opaque token echoed back by Google in headers (≤256 chars).
+This creates a webhook for the calendar specified in your configuration and stores the channel metadata in `~/.gcalendar-webhook-cli/state/<account-label>.json`.
 
-The command prints the channel identifiers and caches them locally for later use.
+**Options:**
+- `-a, --account <label>` (required): Account label from configuration
+- `-c, --calendar <calendar-id>` (required): Calendar ID from configuration
+- `--config <path>`: Path to configuration file (default: `./gcalendar-webhooks.yaml`)
+- `--verbose`: Enable verbose logging
 
-### 3. Inspect channels
+### 3. List Webhook Channels
+
+List all webhook channels from local state:
+
 ```bash
-gcalendar-webhook-cli channels list
+gcalendar-webhook-cli list
 ```
 
-### 4. Stop a channel
+**Important:** The `list` command reflects local state only. It does not query the Google Calendar API. Use it to monitor webhook status and expiration times.
+
+**Options:**
+- `--config <path>`: Path to configuration file (default: `./gcalendar-webhooks.yaml`)
+- `--verbose`: Enable verbose logging
+
+### 4. Stop Webhook Channels
+
+Stop a webhook channel for a specific calendar:
+
 ```bash
-gcalendar-webhook-cli channels stop 01234567-89ab-cdef-0123456789ab
+gcalendar-webhook-cli stop \
+  --account work-account \
+  --calendar primary
 ```
 
-### 5. Prune expired channels
+This stops the channel via the Google Calendar API and removes it from local state.
+
+**Options:**
+- `-a, --account <label>` (required): Account label from configuration
+- `-c, --calendar <calendar-id>` (required): Calendar ID from state
+- `--config <path>`: Path to configuration file (default: `./gcalendar-webhooks.yaml`)
+- `--verbose`: Enable verbose logging
+
+### 5. Refresh Expiring/Expired Webhooks
+
+Automatically refresh webhooks that are expiring within 3 days or already expired:
+
 ```bash
-gcalendar-webhook-cli channels prune
+gcalendar-webhook-cli refresh
 ```
-Add `--dry-run` to preview without stopping.
+
+This command:
+- Scans all account state files
+- Identifies webhooks expiring within 3 days or already expired
+- Stops old channels
+- Creates new channels with fresh expiration times
+- Updates local state
+
+**Cron Example:**
+
+Run refresh daily at 2 AM:
+
+```cron
+0 2 * * * cd /path/to/project && /usr/local/bin/gcalendar-webhook-cli refresh --config ./gcalendar-webhooks.yaml
+```
+
+**Options:**
+- `--config <path>`: Path to configuration file (default: `./gcalendar-webhooks.yaml`)
+- `--verbose`: Enable verbose logging
 
 ## Webhook Receiver Requirements
-- Endpoint **must** be HTTPS with a valid publicly trusted certificate.
-- Expect an initial `sync` notification (message number 1) followed by `exists/not_exists`.
-- Google sends headers such as `X-Goog-Channel-Id`, `X-Goog-Resource-Id`, `X-Goog-Resource-State`.
-- Delivery does not include payload details; follow-up API calls are required to fetch changes.
-- Respond with 2xx to acknowledge; Google retries on 5xx using exponential backoff.
 
-## Renewing Channels
-Channels expire. Use `channels list` to monitor expiration times and issue new `watch` commands before expiry. When recreating, Google requires unique channel IDs; the CLI auto-generates fresh UUIDs.
+Your webhook endpoint must satisfy these requirements:
 
-## Limitations
-- The CLI stores tokens unencrypted on disk. Secure the config directory per your environment policies.
-- Live API interactions require valid Google credentials and network access; automated tests are not included.
-- Push notifications are not guaranteed; always design your webhook receiver to tolerate missed messages.
+- **HTTPS with valid publicly trusted certificate** (HTTP is not supported)
+- Respond with **2xx status code** to acknowledge receipt
+- Expect an initial `sync` notification (message number 1) followed by `exists/not_exists` state changes
+- Google sends headers: `X-Goog-Channel-Id`, `X-Goog-Resource-Id`, `X-Goog-Resource-State`
+- Delivery does not include event details; use the Calendar API to fetch changes
+- Google retries on 5xx errors using exponential backoff
+
+## Channel Expiration and Renewal
+
+Google Calendar webhook channels expire after approximately 7 days. The CLI handles expiration management:
+
+1. **Monitor expiration:** Use `list` command to check webhook status
+2. **Automatic refresh:** Use `refresh` command (recommended via cron) to renew expiring channels
+3. **Manual renewal:** Use `stop` + `watch` to recreate channels manually
 
 ## Development Scripts
+
 - `npm run build` – compile TypeScript to `dist/`
 - `npm start` – run the CLI directly via `ts-node`
 - `npm run watch` – incremental TypeScript compilation
+
+## Limitations
+
+- OAuth tokens are stored unencrypted on disk. Secure the `~/.gcalendar-webhook-cli/` directory per your environment policies.
+- The `list` command reflects local state only and does not query the Google Calendar API.
+- Push notifications are not guaranteed; design your webhook receiver to tolerate missed messages.
 
 ## License
 MIT

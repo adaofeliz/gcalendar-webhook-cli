@@ -1,0 +1,20 @@
+# Example configuration for gcalendar-webhook-cli
+# Copy this file to gcalendar-webhooks.yaml and customize for your environment
+
+credentials_path: ./credentials.json
+
+accounts:
+  - label: work-account
+    credentials_path: ./credentials-work.json
+    calendars:
+      - calendar_id: primary
+        webhook_url: https://example.com/webhooks/work/primary
+      - calendar_id: team@example.com
+        webhook_url: https://example.com/webhooks/work/team
+
+  - label: personal
+    calendars:
+      - calendar_id: primary
+        webhook_url: https://example.com/webhooks/personal/primary
+      - calendar_id: holidays@example.com
+        webhook_url: https://example.com/webhooks/personal/holidays
