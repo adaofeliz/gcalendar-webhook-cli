@@ -238,13 +238,19 @@ export const getAuthorizedClient = async (accountLabel: string, config: Config):
     logger.debug('Token refresh triggered, updating stored tokens');
     
     // MERGE semantics - never clobber refresh_token
-    writeAccountTokens(accountLabel, {
+    const tokenUpdate: Record<string, any> = {
       access_token: newTokens.access_token ?? undefined,
-      refresh_token: newTokens.refresh_token ?? undefined,
       token_type: newTokens.token_type ?? tokens.token_type,
       expiry_date: newTokens.expiry_date ?? undefined,
       scope: newTokens.scope ?? tokens.scope,
-    });
+    };
+    
+    // Only include refresh_token if it's actually present (Google only sends it on initial auth)
+    if (newTokens.refresh_token) {
+      tokenUpdate.refresh_token = newTokens.refresh_token;
+    }
+    
+    writeAccountTokens(accountLabel, tokenUpdate);
   });
 
   // Ensure access token is fresh before returning
