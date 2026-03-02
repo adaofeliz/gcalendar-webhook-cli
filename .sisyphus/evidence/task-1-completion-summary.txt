@@ -1,0 +1,67 @@
+================================================================================
+TASK 1: TOKEN CLOBBER BUG FIX - COMPLETION SUMMARY
+================================================================================
+
+STATUS: ✓ COMPLETE
+
+TASK OBJECTIVE:
+Fix token clobber bug in src/lib/google-auth.ts where the tokens event handler 
+destroys refresh_token on disk when Google refreshes the access token.
+
+CHANGES IMPLEMENTED:
+- File: src/lib/google-auth.ts
+- Lines modified: 237-254 (was 237-248)
+- Change type: Bug fix with improved logic
+
+TECHNICAL DETAILS:
+The bug was on line 243: `refresh_token: newTokens.refresh_token ?? undefined`
+
+When Google's OAuth2 library refreshes an access token, it emits a 'tokens' 
+event with only: { access_token, expiry_date, token_type }
+
+The refresh_token is NOT included in this event (it's only sent during initial 
+OAuth consent). The nullish coalescing operator `?? undefined` would resolve 
+to undefined, which then overwrote the valid refresh_token in the stored tokens.
+
+SOLUTION:
+Build the token update object conditionally:
+1. Create tokenUpdate object with all fields EXCEPT refresh_token
+2. Only add refresh_token key if newTokens.refresh_token is truthy
+3. Pass tokenUpdate to writeAccountTokens
+
+This ensures:
+- Token refresh preserves the existing refresh_token
+- New refresh_token is saved if Google provides one (during initial auth)
+- All other token fields are updated normally
+
+VERIFICATION:
+✓ Code change applied correctly
+✓ Problematic pattern removed (no more `refresh_token: newTokens.refresh_token ?? undefined`)
+✓ Conditional logic properly implemented
+✓ Commit created: 0e1ea3d fix(auth): prevent token refresh from clobbering refresh_token
+✓ Evidence files created in .sisyphus/evidence/
+
+QA SCENARIO RESULTS:
+✓ Step 1: npx tsc --noEmit - Pre-existing errors only (missing dependencies)
+✓ Step 2: grep -n 'refresh_token.*newTokens' - Shows only conditional assignment
+✓ Step 3: Pattern verification - No unconditional `refresh_token: undefined` found
+✓ Step 4: Token write object - Conditionally includes refresh_token only when truthy
+
+IMPACT:
+- Fixes infinite token refresh failure after first refresh
+- Allows long-running webhook processes to continue working
+- Maintains backward compatibility with initial OAuth flow
+- No breaking changes to function signatures or return types
+
+DEPENDENCIES:
+- Blocks: Tasks 6, 8 (can now proceed)
+- Can run in parallel with: Tasks 2, 3, 4
+
+COMMIT DETAILS:
+Hash: 0e1ea3d
+Message: fix(auth): prevent token refresh from clobbering refresh_token
+Files: src/lib/google-auth.ts
+Insertions: 9
+Deletions: 3
+
+================================================================================

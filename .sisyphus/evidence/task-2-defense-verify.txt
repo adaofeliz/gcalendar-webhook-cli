@@ -1,0 +1,42 @@
+TASK 2: Defense-in-Depth for writeAccountTokens()
+==================================================
+
+OBJECTIVE:
+Add filtering of undefined values before merge in writeAccountTokens() to prevent
+accidental overwriting of existing token data via spread operator.
+
+IMPLEMENTATION:
+File: src/lib/state.ts (lines 97-99)
+
+Before:
+  const existing = readAccountTokens(label);
+  const merged = existing ? { ...existing, ...tokens } : tokens;
+
+After:
+  const existing = readAccountTokens(label);
+  const cleanTokens = Object.fromEntries(Object.entries(tokens).filter(([_, v]) => v !== undefined));
+  const merged = existing ? { ...existing, ...cleanTokens } : cleanTokens;
+
+VERIFICATION RESULTS:
+✓ TypeScript compilation: PASS (npx tsc --noEmit)
+✓ Filtering logic present: CONFIRMED
+  - cleanTokens filters out undefined values using Object.entries().filter()
+  - Merge uses cleanTokens instead of raw tokens parameter
+  - Prevents spread operator from overwriting with undefined
+
+GREP VERIFICATION:
+$ grep -B2 'const merged' src/lib/state.ts
+  const existing = readAccountTokens(label);
+  const cleanTokens = Object.fromEntries(Object.entries(tokens).filter(([_, v]) => v !== undefined));
+  const merged = existing ? { ...existing, ...cleanTokens } : cleanTokens;
+
+SECURITY BENEFIT:
+This is belt-and-suspenders protection against the class of bug where:
+  { ...{ refresh_token: 'abc' }, ...{ refresh_token: undefined } }
+would result in { refresh_token: undefined }, clobbering the existing value.
+
+With this fix, undefined values are filtered out before the spread, ensuring
+no caller can accidentally overwrite existing tokens with undefined.
+
+TIMESTAMP: 2026-03-02
+STATUS: COMPLETE

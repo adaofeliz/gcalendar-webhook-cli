@@ -1,0 +1,31 @@
+TASK 3 VERIFICATION EVIDENCE
+============================
+
+Task: Change handleCalendarError() to throw instead of process.exit(1)
+
+VERIFICATION RESULTS:
+=====================
+
+1. TypeScript Compilation Check
+   Command: npx tsc --noEmit
+   Result: PASSED (no errors)
+
+2. Process.exit Count Check
+   Command: grep -c 'process.exit' src/lib/calendar.ts
+   Result: 0 (PASSED - no process.exit calls remain)
+
+CHANGE SUMMARY:
+===============
+File: src/lib/calendar.ts
+Line: 71
+Before: process.exit(1);
+After: throw new Error(err.message);
+
+IMPACT:
+=======
+- handleCalendarError() now throws instead of exiting
+- Callers' try/catch blocks in watch.ts and refresh.ts become active
+- Enables graceful error handling for --force flag across multiple webhooks
+- refresh.ts:124-135 dead code is now functional
+
+QA SCENARIO RESULT: PASSED ✓

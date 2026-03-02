@@ -1,0 +1,59 @@
+TASK 4: Dead Code Cleanup - Evidence Report
+=============================================
+
+OBJECTIVE:
+Delete dead code files from the old implementation that are not wired into the CLI.
+
+VERIFICATION RESULTS:
+====================
+
+1. File Deletion Verification:
+   ✓ PASS: src/config.ts deleted
+   ✓ PASS: src/auth deleted
+   ✓ PASS: src/storage deleted
+   ✓ PASS: src/commands/channels deleted
+   ✓ PASS: src/commands/login.ts deleted
+
+2. Active Files Verification:
+   ✓ PASS: Active files still exist
+     - src/lib/config.ts (ACTIVE config loader)
+     - src/lib/google-auth.ts (ACTIVE auth)
+
+3. TypeScript Compilation:
+   ✓ PASS: npx tsc --noEmit (no errors)
+
+4. Index.ts Imports Verification:
+   Active imports in src/index.ts:
+   - ./commands/auth.js (registerAuthCommand)
+   - ./commands/watch.js (watchCommand)
+   - ./commands/stop.js (stopCommand)
+   - ./commands/list.js (listCommand)
+   - ./commands/refresh.js (refreshCommand)
+   
+   None of the deleted files were imported.
+
+DELETED FILES:
+==============
+- src/config.ts (old config with XDG paths)
+- src/auth/googleAuth.ts (old auth with env var approach)
+- src/storage/channelStore.ts (old channel store)
+- src/commands/channels/list.ts (old list command)
+- src/commands/channels/stop.ts (old stop command)
+- src/commands/channels/prune.ts (old prune command)
+- src/commands/login.ts (old login command)
+
+DELETED DIRECTORIES:
+====================
+- src/auth/ (empty after deletion)
+- src/storage/ (empty after deletion)
+- src/commands/channels/ (empty after deletion)
+
+SUMMARY:
+========
+✓ All dead code files successfully removed
+✓ All empty directories cleaned up
+✓ TypeScript compilation passes
+✓ Active files preserved
+✓ No breaking changes to CLI functionality
+
+Status: COMPLETE

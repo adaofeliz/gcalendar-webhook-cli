@@ -1,0 +1,68 @@
+TASK 1: Token Clobber Bug Fix - Verification Report
+====================================================
+
+OBJECTIVE:
+Fix token refresh handler to prevent clobbering refresh_token when Google 
+refreshes the access token.
+
+CHANGES MADE:
+File: src/lib/google-auth.ts (lines 237-254)
+
+BEFORE (problematic code):
+  oauth2Client.on('tokens', (newTokens: Credentials) => {
+    logger.debug('Token refresh triggered, updating stored tokens');
+    
+    // MERGE semantics - never clobber refresh_token
+    writeAccountTokens(accountLabel, {
+      access_token: newTokens.access_token ?? undefined,
+      refresh_token: newTokens.refresh_token ?? undefined,  // BUG: clobbers with undefined
+      token_type: newTokens.token_type ?? tokens.token_type,
+      expiry_date: newTokens.expiry_date ?? undefined,
+      scope: newTokens.scope ?? tokens.scope,
+    });
+  });
+
+AFTER (fixed code):
+  oauth2Client.on('tokens', (newTokens: Credentials) => {
+    logger.debug('Token refresh triggered, updating stored tokens');
+    
+    // MERGE semantics - never clobber refresh_token
+    const tokenUpdate: Record<string, any> = {
+      access_token: newTokens.access_token ?? undefined,
+      token_type: newTokens.token_type ?? tokens.token_type,
+      expiry_date: newTokens.expiry_date ?? undefined,
+      scope: newTokens.scope ?? tokens.scope,
+    };
+    
+    // Only include refresh_token if it's actually present (Google only sends it on initial auth)
+    if (newTokens.refresh_token) {
+      tokenUpdate.refresh_token = newTokens.refresh_token;
+    }
+    
+    writeAccountTokens(accountLabel, tokenUpdate);
+  });
+
+VERIFICATION RESULTS:
+✓ Problematic pattern removed: No longer contains `refresh_token: newTokens.refresh_token ?? undefined`
+✓ Conditional logic added: refresh_token only included in tokenUpdate when truthy
+✓ Other token fields preserved: access_token, token_type, expiry_date, scope unchanged
+✓ Comment added: Explains why refresh_token is conditionally included
+
+GREP VERIFICATION:
+Command: grep -n 'refresh_token.*newTokens' src/lib/google-auth.ts
+Result: 250:      tokenUpdate.refresh_token = newTokens.refresh_token;
+Status: ✓ PASS - Only shows the conditional assignment, not the problematic pattern
+
+KEY INSIGHT:
+Google's OAuth2 library only returns refresh_token during initial authorization.
+On subsequent token refreshes, the tokens event emits only:
+  { access_token, expiry_date, token_type }
+  
+The old code's `?? undefined` would resolve to undefined and overwrite the 
+stored refresh_token. The fix conditionally includes refresh_token only when 
+it's actually present in the new tokens object.
+
+IMPACT:
+- Token refresh will no longer destroy the stored refresh_token
+- Subsequent token refreshes will continue to work indefinitely
+- Initial OAuth flow still correctly saves the refresh_token
