@@ -95,7 +95,8 @@ export const writeAccountTokens = (
   const filePath = path.join(ACCOUNTS_DIR, `${label}.json`);
   
   const existing = readAccountTokens(label);
-  const merged = existing ? { ...existing, ...tokens } : tokens;
+  const cleanTokens = Object.fromEntries(Object.entries(tokens).filter(([_, v]) => v !== undefined));
+  const merged = existing ? { ...existing, ...cleanTokens } : cleanTokens;
 
   writeJsonAtomically(filePath, merged);
 };
