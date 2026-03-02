@@ -68,7 +68,7 @@ const handleCalendarError = (
       }
   }
 
-  process.exit(1);
+  throw new Error(err.message);
 };
 
 /**
