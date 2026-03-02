@@ -52,6 +52,7 @@ program
   .description('Refresh expiring/expired webhooks for all configured calendars')
   .option('--config <path>', 'Path to configuration file (default: ./gcalendar-webhooks.yaml)')
   .option('--verbose', 'Enable verbose logging')
+  .option('--force', 'Recreate all webhooks regardless of expiration')
   .action(refreshCommand);
 
 program.parseAsync(process.argv).catch((error: unknown) => {

@@ -16,6 +16,7 @@ import * as logger from '../lib/logger.js';
 export interface RefreshOptions {
   config?: string;
   verbose?: boolean;
+  force?: boolean;
 }
 
 /**
@@ -238,8 +239,8 @@ export const refreshCommand = async (options: RefreshOptions): Promise<void> => 
         continue;
       }
 
-      // Skip if expiration > 3 days from now
-      if (timeUntilExpiration > thresholdMs) {
+      // Skip if expiration > 3 days from now (unless --force is set)
+      if (!options.force && timeUntilExpiration > thresholdMs) {
         logger.debug(
           `[${accountLabel}] [${webhook.calendar_id}]: Webhook is active, no refresh needed ` +
           `(expires in ${Math.floor(timeUntilExpiration / 1000 / 60 / 60)}h)`
@@ -247,11 +248,17 @@ export const refreshCommand = async (options: RefreshOptions): Promise<void> => 
         continue;
       }
 
-      // Refresh if expired or expiring within 3 days
+      // Refresh if expired or expiring within 3 days (or --force)
       needsRefresh++;
-      logger.log(
-        `[${accountLabel}] [${webhook.calendar_id}]: Webhook ${status}, refreshing...`
-      );
+      if (options.force && timeUntilExpiration > thresholdMs) {
+        logger.log(
+          `[${accountLabel}] [${webhook.calendar_id}]: Force-refreshing webhook...`
+        );
+      } else {
+        logger.log(
+          `[${accountLabel}] [${webhook.calendar_id}]: Webhook ${status}, refreshing...`
+        );
+      }
       
       const success = await refreshWebhook(accountLabel, webhook, config);
       if (!success) {
