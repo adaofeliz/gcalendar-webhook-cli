@@ -35,22 +35,22 @@ accounts:
 
 ### Configuration Fields
 
-- `credentials_path`: Path to OAuth 2.0 credentials JSON file
-- `accounts[]`: Array of Google accounts
-  - `label`: Unique identifier for the account (used in commands)
-  - `calendars[]`: Array of calendars to manage
+- `credentials_path`: Path to OAuth 2.0 credentials JSON file (must exist)
+- `accounts[]`: Array of Google accounts (cannot be empty)
+  - `label`: Unique identifier for the account (must be unique across all accounts)
+  - `calendars[]`: Array of calendars to manage (cannot be empty)
     - `calendar_id`: Calendar identifier (`primary` or email address)
-    - `webhook_url`: HTTPS endpoint that will receive webhook notifications
+    - `webhook_url`: HTTPS endpoint that will receive webhook notifications (must start with `https://`)
 
 ## Usage
 
 ### 1. Authenticate
 
 ```bash
-gcalendar-webhook-cli auth --account my-account
+gcalendar-webhook-cli auth my-account
 ```
 
-This opens a browser for OAuth consent. Tokens are stored in `~/.gcalendar-webhook-cli/tokens/`.
+This opens a browser for OAuth consent. Tokens are stored in `~/.gcalendar-webhook-cli/accounts/`.
 
 ### 2. Start Watching
 
@@ -90,7 +90,7 @@ All data is stored under `~/.gcalendar-webhook-cli/`:
 
 ```
 ~/.gcalendar-webhook-cli/
-├── tokens/
+├── accounts/
 │   └── my-account.json      # OAuth tokens
 └── state/
     └── my-account.json      # Webhook state
