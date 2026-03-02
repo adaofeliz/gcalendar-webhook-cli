@@ -44,6 +44,7 @@ program
   .description('List all webhook channels (reflects local state only)')
   .option('--config <path>', 'Path to configuration file (default: ./gcalendar-webhooks.yaml)')
   .option('--verbose', 'Enable verbose logging')
+  .option('--verify', 'Verify channel status via Google API and clean expired entries')
   .action(listCommand);
 
 // Refresh command - refresh expiring/expired webhooks

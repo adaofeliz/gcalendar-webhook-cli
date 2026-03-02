@@ -9,6 +9,8 @@
     "build": "tsc",
     "start": "ts-node src/index.ts",
     "watch": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -30,6 +32,7 @@
     "@types/node": "^20.11.19",
     "@types/uuid": "^9.0.7",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.2",
+    "vitest": "^4.0.18"
   }
 }

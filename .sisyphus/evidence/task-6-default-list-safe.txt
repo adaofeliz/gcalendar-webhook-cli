@@ -1,0 +1,12 @@
+9:import { loadConfig } from '../lib/config.js';
+10:import { getAuthorizedClient } from '../lib/google-auth.js';
+11:import { watchCalendarEvents } from '../lib/calendar.js';
+19:  verify?: boolean;
+151:  if (!options.verify) {
+155:  // --verify mode: probe expired/expiring channels via Google API
+161:    config = loadConfig({ path: options.config });
+189:        const auth = await getAuthorizedClient(account, config);
+190:        const calApi = google.calendar({ version: 'v3', auth });
+233:      const auth = await getAuthorizedClient(account, config);
+234:      const calApi = google.calendar({ version: 'v3', auth });
+260:      const watchResponse = await watchCalendarEvents(auth, webhook.calendar_id, calendarConfig.webhook_url);

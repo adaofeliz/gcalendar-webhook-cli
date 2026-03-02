@@ -1,0 +1,10 @@
+Usage: gcalendar-webhook-cli refresh [options]
+
+Refresh expiring/expired webhooks for all configured calendars
+
+Options:
+  --config <path>  Path to configuration file (default:
+                   ./gcalendar-webhooks.yaml)
+  --verbose        Enable verbose logging
+  --force          Recreate all webhooks regardless of expiration
+  -h, --help       display help for command

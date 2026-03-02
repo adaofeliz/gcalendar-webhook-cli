@@ -1,0 +1,21 @@
+243:      if (!options.force && timeUntilExpiration > thresholdMs) {
+244-        logger.debug(
+245-          `[${accountLabel}] [${webhook.calendar_id}]: Webhook is active, no refresh needed ` +
+246-          `(expires in ${Math.floor(timeUntilExpiration / 1000 / 60 / 60)}h)`
+247-        );
+248-        continue;
+249-      }
+250-
+251-      // Refresh if expired or expiring within 3 days (or --force)
+252-      needsRefresh++;
+253:      if (options.force && timeUntilExpiration > thresholdMs) {
+254-        logger.log(
+255-          `[${accountLabel}] [${webhook.calendar_id}]: Force-refreshing webhook...`
+256-        );
+257-      } else {
+258-        logger.log(
+259-          `[${accountLabel}] [${webhook.calendar_id}]: Webhook ${status}, refreshing...`
+260-        );
+261-      }
+262-      
+263-      const success = await refreshWebhook(accountLabel, webhook, config);
