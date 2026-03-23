@@ -195,7 +195,7 @@ export const authFlow = async (accountLabel: string, config: Config): Promise<vo
     });
   });
 
-  logger.log('Login successful.');
+  logger.log('Authentication successful.');
 };
 
 /**
@@ -210,14 +210,14 @@ export const getAuthorizedClient = async (accountLabel: string, config: Config):
 
   if (!tokens) {
     logger.error(
-      `No stored credentials found for account "${accountLabel}". Run 'login' command first.`
+      `No stored credentials found for account "${accountLabel}". Run 'auth' command first.`
     );
     process.exit(1);
   }
 
   if (!tokens.refresh_token) {
     logger.error(
-      `Missing refresh_token for account "${accountLabel}". Run 'login' command to re-authenticate.`
+      `Missing refresh_token for account "${accountLabel}". Run 'auth' command to re-authenticate.`
     );
     process.exit(1);
   }
@@ -262,7 +262,7 @@ export const getAuthorizedClient = async (accountLabel: string, config: Config):
     // Check for invalid_grant error (expired or revoked refresh_token)
     if (err.message.includes('invalid_grant')) {
       logger.error(
-        `Refresh token for account "${accountLabel}" is invalid or expired. Run 'login' command to re-authenticate.`
+        `Refresh token for account "${accountLabel}" is invalid or expired. Run 'auth' command to re-authenticate.`
       );
       process.exit(1);
     }
