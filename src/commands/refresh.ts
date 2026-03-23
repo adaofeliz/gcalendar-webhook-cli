@@ -81,25 +81,13 @@ const stopChannelGracefully = async (
  * Refresh a single webhook for a calendar
  * Returns true on success, false on failure
  */
-const refreshWebhook = async (
+export const refreshWebhook = async (
   accountLabel: string,
   webhook: WebhookRecord,
   config: Config
 ): Promise<boolean> => {
   logger.debug(`[${accountLabel}] [${webhook.calendar_id}]: Starting webhook refresh`);
 
-  // Attempt to stop old channel
-  await stopChannelGracefully(accountLabel, webhook, config);
-
-  // Remove old record from state regardless of stop outcome
-  const state = readAccountState(accountLabel);
-  state.webhooks = state.webhooks.filter(
-    (w) => !(w.calendar_id === webhook.calendar_id && w.channel_id === webhook.channel_id)
-  );
-  writeAccountState(accountLabel, state);
-  logger.debug(`[${accountLabel}] [${webhook.calendar_id}]: Old webhook record removed from state`);
-
-  // Resolve webhook_url from config
   const calendarConfig = findCalendarConfig(config, accountLabel, webhook.calendar_id);
   if (!calendarConfig) {
     logger.error(
@@ -148,10 +136,16 @@ const refreshWebhook = async (
   };
 
   const updatedState = readAccountState(accountLabel);
+  updatedState.webhooks = updatedState.webhooks.filter(
+    (w) => w.calendar_id !== webhook.calendar_id
+  );
   updatedState.webhooks.push(newWebhook);
   writeAccountState(accountLabel, updatedState);
 
   logger.debug(`[${accountLabel}] [${webhook.calendar_id}]: New webhook record saved to state`);
+
+  await stopChannelGracefully(accountLabel, webhook, config);
+
   logger.log(
     `✓ [${accountLabel}] [${webhook.calendar_id}]: Webhook refreshed successfully`
   );
