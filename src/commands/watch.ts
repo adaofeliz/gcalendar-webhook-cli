@@ -4,6 +4,8 @@
  */
 
 import type { Config, WebhookRecord, CalendarEntry } from '../types/index.js';
+import type { GaxiosError } from 'gaxios';
+import { google } from 'googleapis';
 import { loadConfig } from '../lib/config.js';
 import { readAccountState, writeAccountState } from '../lib/state.js';
 import { getAuthorizedClient } from '../lib/google-auth.js';
@@ -31,17 +33,6 @@ const findCalendarConfig = (
   }
 
   return account.calendars.find((cal) => cal.calendar_id === calendarId);
-};
-
-/**
- * Check if a webhook already exists for the given calendar
- */
-const findExistingWebhook = (
-  accountLabel: string,
-  calendarId: string
-): WebhookRecord | undefined => {
-  const state = readAccountState(accountLabel);
-  return state.webhooks.find((webhook) => webhook.calendar_id === calendarId);
 };
 
 /**
@@ -90,21 +81,41 @@ export const watchCommand = async (options: WatchOptions): Promise<void> => {
   logger.debug(`Calendar "${options.calendar}" found in account configuration`);
   logger.debug(`Webhook URL: ${calendarConfig.webhook_url}`);
 
-  // Check for existing webhook (warn, don't error)
-  const existingWebhook = findExistingWebhook(options.account, options.calendar);
-  if (existingWebhook) {
-    logger.warn(
-      `A webhook already exists for calendar "${options.calendar}" in account "${options.account}".\n` +
-      `  Channel ID: ${existingWebhook.channel_id}\n` +
-      `  Resource ID: ${existingWebhook.resource_id}\n` +
-      `  Expiration: ${new Date(existingWebhook.expiration).toISOString()}\n` +
-      `Proceeding to create a new webhook anyway.`
-    );
-  }
-
   // Get authorized client
   logger.debug(`Getting authorized client for account "${options.account}"`);
   const auth = await getAuthorizedClient(options.account, config);
+
+  const state = readAccountState(options.account);
+  const existingWebhooks = state.webhooks.filter((w) => w.calendar_id === options.calendar);
+  if (existingWebhooks.length > 0) {
+    logger.warn(
+      `Found ${existingWebhooks.length} existing webhook(s) for calendar "${options.calendar}". Replacing...`
+    );
+
+    const calendarApi = google.calendar({ version: 'v3', auth });
+    for (const oldWebhook of existingWebhooks) {
+      try {
+        await calendarApi.channels.stop({
+          requestBody: {
+            id: oldWebhook.channel_id,
+            resourceId: oldWebhook.resource_id,
+          },
+        });
+        logger.debug(`Stopped old channel ${oldWebhook.channel_id}`);
+      } catch (error) {
+        const err = error as GaxiosError;
+        const status = err.response?.status;
+
+        if (status === 404 || status === 410) {
+          logger.warn(`Old channel ${oldWebhook.channel_id} already gone (HTTP ${status})`);
+        } else {
+          logger.warn(
+            `Failed to stop old channel ${oldWebhook.channel_id}: ${err.message}. Proceeding.`
+          );
+        }
+      }
+    }
+  }
 
   // Create webhook channel
   logger.debug(`Creating webhook channel for calendar "${options.calendar}"`);
@@ -134,10 +145,12 @@ export const watchCommand = async (options: WatchOptions): Promise<void> => {
     created_at: now,
   };
 
-  // Store webhook record in state
-  const state = readAccountState(options.account);
-  state.webhooks.push(newWebhook);
-  writeAccountState(options.account, state);
+  const currentState = readAccountState(options.account);
+  currentState.webhooks = currentState.webhooks.filter(
+    (webhook) => webhook.calendar_id !== options.calendar
+  );
+  currentState.webhooks.push(newWebhook);
+  writeAccountState(options.account, currentState);
 
   logger.debug(`Webhook record saved to state file`);
 
