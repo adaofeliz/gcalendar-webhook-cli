@@ -12,9 +12,9 @@ describe("Token Merge", () => {
     // Create a temp directory for each test
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gcalendar-test-"));
     // Store original env
-    originalAccountsDir = process.env.ACCOUNTS_DIR || "";
+    originalAccountsDir = process.env.GCALENDAR_WEBHOOK_BASE_DIR || "";
     // Override the accounts directory for testing
-    process.env.ACCOUNTS_DIR = tempDir;
+    process.env.GCALENDAR_WEBHOOK_BASE_DIR = tempDir;
   });
 
   afterEach(() => {
@@ -24,9 +24,9 @@ describe("Token Merge", () => {
     }
     // Restore original env
     if (originalAccountsDir) {
-      process.env.ACCOUNTS_DIR = originalAccountsDir;
+      process.env.GCALENDAR_WEBHOOK_BASE_DIR = originalAccountsDir;
     } else {
-      delete process.env.ACCOUNTS_DIR;
+      delete process.env.GCALENDAR_WEBHOOK_BASE_DIR;
     }
   });
 

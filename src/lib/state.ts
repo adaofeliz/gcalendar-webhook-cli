@@ -8,9 +8,10 @@ import * as path from 'path';
 import * as os from 'os';
 import type { OAuthToken, WebhookStateFile } from '../types/index.js';
 
-const BASE_DIR = path.join(os.homedir(), '.gcalendar-webhook-cli');
-const ACCOUNTS_DIR = path.join(BASE_DIR, 'accounts');
-const STATE_DIR = path.join(BASE_DIR, 'state');
+const getBaseDir = (): string =>
+  process.env.GCALENDAR_WEBHOOK_BASE_DIR ?? path.join(os.homedir(), '.gcalendar-webhook-cli');
+const getAccountsDir = (): string => path.join(getBaseDir(), 'accounts');
+const getStateDir = (): string => path.join(getBaseDir(), 'state');
 
 const LABEL_REGEX = /^[A-Za-z0-9_-]+$/;
 
@@ -71,7 +72,7 @@ const readJsonFile = <T>(filePath: string, fallback: T): T => {
  */
 export const readAccountTokens = (label: string): OAuthToken | null => {
   validateLabel(label);
-  const filePath = path.join(ACCOUNTS_DIR, `${label}.json`);
+  const filePath = path.join(getAccountsDir(), `${label}.json`);
   
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
@@ -92,7 +93,7 @@ export const writeAccountTokens = (
   tokens: Partial<OAuthToken>
 ): void => {
   validateLabel(label);
-  const filePath = path.join(ACCOUNTS_DIR, `${label}.json`);
+  const filePath = path.join(getAccountsDir(), `${label}.json`);
   
   const existing = readAccountTokens(label);
   const cleanTokens = Object.fromEntries(Object.entries(tokens).filter(([_, v]) => v !== undefined));
@@ -107,7 +108,7 @@ export const writeAccountTokens = (
  */
 export const readAccountState = (label: string): WebhookStateFile => {
   validateLabel(label);
-  const filePath = path.join(STATE_DIR, `${label}.json`);
+  const filePath = path.join(getStateDir(), `${label}.json`);
   
   return readJsonFile<WebhookStateFile>(filePath, {
     account_label: label,
@@ -123,7 +124,7 @@ export const writeAccountState = (
   state: WebhookStateFile
 ): void => {
   validateLabel(label);
-  const filePath = path.join(STATE_DIR, `${label}.json`);
+  const filePath = path.join(getStateDir(), `${label}.json`);
   
   writeJsonAtomically(filePath, state);
 };
@@ -133,10 +134,10 @@ export const writeAccountState = (
  * @returns Array of account labels (without .json extension)
  */
 export const listAccountLabels = (): string[] => {
-  ensureDir(STATE_DIR);
+  ensureDir(getStateDir());
   
   try {
-    const files = fs.readdirSync(STATE_DIR);
+    const files = fs.readdirSync(getStateDir());
     return files
       .filter((file) => file.endsWith('.json'))
       .map((file) => file.slice(0, -5));
