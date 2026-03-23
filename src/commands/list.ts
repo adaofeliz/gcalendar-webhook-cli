@@ -231,9 +231,27 @@ export const listCommand = async (options: ListOptions): Promise<void> => {
       }
 
       const auth = await getAuthorizedClient(account, config);
-      const calApi = google.calendar({ version: 'v3', auth });
 
-      // Stop old channel gracefully
+      const watchResponse = await watchCalendarEvents(auth, webhook.calendar_id, calendarConfig.webhook_url);
+      const nowMs = Date.now();
+      const newWebhook: WebhookRecord = {
+        channel_id: watchResponse.channelId,
+        resource_id: watchResponse.resourceId,
+        calendar_id: webhook.calendar_id,
+        account_label: account,
+        webhook_url: calendarConfig.webhook_url,
+        expiration: watchResponse.expiration ?? nowMs + (7 * 24 * 60 * 60 * 1000),
+        created_at: nowMs,
+      };
+
+      const updatedState = readAccountState(account);
+      updatedState.webhooks = updatedState.webhooks.filter(
+        (w) => w.calendar_id !== webhook.calendar_id
+      );
+      updatedState.webhooks.push(newWebhook);
+      writeAccountState(account, updatedState);
+
+      const calApi = google.calendar({ version: 'v3', auth });
       try {
         await calApi.channels.stop({
           requestBody: {
@@ -248,30 +266,6 @@ export const listCommand = async (options: ListOptions): Promise<void> => {
           logger.warn(`[${account}] [${webhook.calendar_id}]: Warning stopping expiring channel: ${err.message}`);
         }
       }
-
-      // Remove old record from state
-      const state = readAccountState(account);
-      state.webhooks = state.webhooks.filter(
-        (w) => !(w.calendar_id === webhook.calendar_id && w.channel_id === webhook.channel_id)
-      );
-      writeAccountState(account, state);
-
-      // Create new channel
-      const watchResponse = await watchCalendarEvents(auth, webhook.calendar_id, calendarConfig.webhook_url);
-      const nowMs = Date.now();
-      const newWebhook: WebhookRecord = {
-        channel_id: watchResponse.channelId,
-        resource_id: watchResponse.resourceId,
-        calendar_id: webhook.calendar_id,
-        account_label: account,
-        webhook_url: calendarConfig.webhook_url,
-        expiration: watchResponse.expiration ?? nowMs + (7 * 24 * 60 * 60 * 1000),
-        created_at: nowMs,
-      };
-
-      const updatedState = readAccountState(account);
-      updatedState.webhooks.push(newWebhook);
-      writeAccountState(account, updatedState);
 
       countRenewed++;
       logger.log(`✓ [${account}] [${webhook.calendar_id}]: Expiring channel renewed successfully`);
